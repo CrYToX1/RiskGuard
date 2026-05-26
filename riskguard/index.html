@@ -113,7 +113,7 @@
                             tensor = tensor.slice([0, 0, 0], [-1, -1, 3]);
                         }
 
-                        tensor = tensor.resizeNearestNeighbor([64, 64])
+                        tensor = tensor.resizeNearestNeighbor([224, 224])
                                       .expandDims(0)
                                       .toFloat()
                                       .div(255.0);
