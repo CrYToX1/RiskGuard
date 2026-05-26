@@ -3,93 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RiskGuard | Prevence nehod</title>
+    <title>RiskGuard - Městský Dispečink</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            background: #0f172a; 
-            color: #e2e8f0; 
-        }
-        .container { 
-            max-width: 1000px; 
-            margin: 40px auto; 
-            padding: 20px; 
-        }
-        h1 { 
-            color: #f87171; 
-            text-align: center; 
-            font-size: 2.8em;
-        }
-        .subtitle { 
-            text-align: center; 
-            color: #94a3b8; 
-            font-size: 1.3em;
-            margin-bottom: 30px; 
-        }
-        .upload-area { 
-            border: 3px dashed #64748b; 
-            padding: 50px; 
-            text-align: center; 
-            border-radius: 12px; 
-            background: #1e2937;
-        }
-        img { 
-            max-width: 100%; 
-            border-radius: 10px; 
-            margin: 25px 0; 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }
-        .result { 
-            margin-top: 25px; 
-            padding: 25px; 
-            background: #1e2937; 
-            border-radius: 10px; 
-            font-size: 1.25em;
-            line-height: 1.6;
-        }
-        .high-risk { 
-            color: #ef4444; 
-            font-weight: bold; 
-            background: #450a0a;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 6px solid #ef4444;
-        }
-        .low-risk { 
-            color: #4ade80; 
-        }
+        body { font-family: Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+        .container { max-width: 1100px; margin: 40px auto; padding: 20px; }
+        h1 { color: #f87171; text-align: center; }
+        .login-box, .dashboard { background: #1e2937; padding: 40px; border-radius: 12px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: none; }
+        button { padding: 12px 25px; background: #f87171; color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .high-risk { color: #ef4444; font-weight: bold; background: #450a0a; padding: 15px; border-radius: 8px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>RiskGuard</h1>
-        <p class="subtitle">AI systém pro detekci rizikových křižovatek a prevenci nehod</p>
-        
-        <div class="upload-area">
-            <p><strong>Nahraj snímek z dopravní kamery</strong><br>
-            Model analyzuje riziko kolize, přítomnost chodců a cyklistů</p>
-            <input type="file" id="upload" accept="image/*">
+    <div class="container" id="app">
+        <!-- Login obrazovka -->
+        <div id="loginScreen" class="login-box">
+            <h1>RiskGuard</h1>
+            <h2 style="text-align:center;">Městský Dispečink</h2>
+            <p style="text-align:center;">Přihlášení autorizovaného uživatele</p>
+            <input type="text" id="username" placeholder="Uživatelské jméno" value="dispecink">
+            <input type="password" id="password" placeholder="Heslo" value="riskguard2026">
+            <button onclick="login()" style="width:100%; margin-top:15px;">Přihlásit se</button>
         </div>
 
-        <div id="preview"></div>
-        <div id="result" class="result"></div>
+        <!-- Hlavní dashboard (skrytý) -->
+        <div id="dashboard" class="dashboard" style="display:none;">
+            <h1>RiskGuard - Prevence nehod</h1>
+            <p>Přihlášen jako: <strong id="userDisplay"></strong> | <button onclick="logout()">Odhlásit</button></p>
+            
+            <h3>📸 Analýza dopravní kamery</h3>
+            <input type="file" id="upload" accept="image/*" style="margin:15px 0;">
+            
+            <div id="preview"></div>
+            <div id="result" style="margin-top:20px; font-size:1.2em;"></div>
+            
+            <h3>📊 Historie analýz</h3>
+            <div id="history"></div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
     <script>
         let model;
-        
+        let currentUser = "";
+
         async function loadModel() {
             try {
                 model = await tf.loadLayersModel('./model/model.json');
-                console.log("✅ RiskGuard model načten");
+                console.log("Model načten");
             } catch(e) {
-                console.error("Chyba načtení modelu", e);
+                console.error(e);
             }
         }
 
-        loadModel();
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (username === "dispecink" && password === "riskguard2026") {
+                currentUser = username;
+                document.getElementById('loginScreen').style.display = "none";
+                document.getElementById('dashboard').style.display = "block";
+                document.getElementById('userDisplay').textContent = username;
+                loadModel();
+            } else {
+                alert("Neplatné přihlašovací údaje! (dispecink / riskguard2026)");
+            }
+        }
+
+        function logout() {
+            document.getElementById('loginScreen').style.display = "block";
+            document.getElementById('dashboard').style.display = "none";
+        }
 
         document.getElementById('upload').addEventListener('change', async function(e) {
             const file = e.target.files[0];
@@ -97,11 +82,15 @@
 
             const reader = new FileReader();
             reader.onload = async function(ev) {
-                document.getElementById('preview').innerHTML = 
-                    `<img src="${ev.target.result}" id="inputImage">`;
+                document.getElementById('preview').innerHTML = `<img src="${ev.target.result}" id="img" style="max-width:100%; border-radius:10px;">`;
 
-                const img = document.getElementById('inputImage');
+                const img = document.getElementById('img');
                 img.onload = async () => {
+                    if (!model) {
+                        document.getElementById('result').innerHTML = "Model se ještě načítá...";
+                        return;
+                    }
+
                     const tensor = tf.browser.fromPixels(img)
                         .resizeNearestNeighbor([64, 64])
                         .expandDims(0)
@@ -114,32 +103,46 @@
                     const maxIndex = results[0].indexOf(Math.max(...results[0]));
                     const confidence = (results[0][maxIndex] * 100).toFixed(1);
 
-                    let output = `<strong>Analýza křižovatky:</strong> ${classes[maxIndex].replace('_', ' ').toUpperCase()}<br>`;
-                    output += `<strong>Jistota modelu:</strong> ${confidence}%<br><br>`;
+                    let html = `<strong>Situace:</strong> ${classes[maxIndex].replace('_', ' ').toUpperCase()} (${confidence}%)<br><br>`;
 
-                    if (classes[maxIndex] === 'rizikova_situace') {
-                        output += `<div class="high-risk">⚠ VYSOKÉ RIZIKO KOLIZE<br>
-                        Detekována nebezpečná situace (vozidlo v konfliktu).<br>
-                        <strong>Doporučení prevence:</strong> Okamžité upozornění dispečinku + příprava zásahu</div>`;
-                    } 
-                    else if (classes[maxIndex] === 'chodci_cykliste') {
-                        output += `<div class="high-risk">⚠ OHROŽENÍ CHODCŮ / CYKLISTŮ<br>
-                        Vysoké riziko střetu s vulnerabilními účastníky.<br>
-                        <strong>Doporučení prevence:</strong> Zvážit prodloužení zelené pro chodce nebo varovné značení</div>`;
-                    } 
-                    else if (classes[maxIndex] === 'kolona') {
-                        output += `<div class="result">Střední riziko – kolona může vést k sekundárním nehodám.<br>
-                        <strong>Doporučení:</strong> Monitorovat vývoj situace</div>`;
-                    } 
-                    else {
-                        output += `<span class="low-risk">✅ Nízké riziko. Situace je v normě.</span>`;
+                    if (classes[maxIndex] === 'rizikova_situace' || classes[maxIndex] === 'chodci_cykliste') {
+                        html += `<div class="high-risk">⚠ VYSOKÉ RIZIKO<br>Doporučení: Okamžitý zásah dispečinku / hlídky</div>`;
+                    } else {
+                        html += `Situace je stabilní.`;
                     }
 
-                    document.getElementById('result').innerHTML = output;
+                    document.getElementById('result').innerHTML = html;
+
+                    // Uložení do historie (localStorage = "databáze")
+                    saveToHistory(classes[maxIndex], confidence);
                 };
             };
             reader.readAsDataURL(file);
         });
+
+        function saveToHistory(situace, confidence) {
+            let history = JSON.parse(localStorage.getItem('riskguard_history') || '[]');
+            history.unshift({
+                cas: new Date().toLocaleString('cs-CZ'),
+                situace: situace.replace('_', ' ').toUpperCase(),
+                jistota: confidence + "%"
+            });
+            localStorage.setItem('riskguard_history', JSON.stringify(history));
+            showHistory();
+        }
+
+        function showHistory() {
+            let history = JSON.parse(localStorage.getItem('riskguard_history') || '[]');
+            let html = '<table border="1" style="width:100%; border-collapse:collapse;"><tr><th>Čas</th><th>Situace</th><th>Jistota</th></tr>';
+            history.forEach(item => {
+                html += `<tr><td>${item.cas}</td><td>${item.situace}</td><td>${item.jistota}</td></tr>`;
+            });
+            html += '</table>';
+            document.getElementById('history').innerHTML = html;
+        }
+
+        // Načtení historie při startu
+        window.onload = showHistory;
     </script>
 </body>
 </html>
