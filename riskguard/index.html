@@ -49,78 +49,85 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
-<script>
-    let model = null;
+    <script>
+        let model = null;
 
-    async function loadModel() {
-        document.getElementById('status').innerHTML = "🔄 Načítám AI model (může trvat 5-15 sekund)...";
-        try {
-            model = await tf.loadLayersModel('./model/model.json');
-            document.getElementById('status').innerHTML = "✅ Model načten. Nyní můžete nahrávat obrázky.";
-        } catch(e) {
-            document.getElementById('status').innerHTML = "❌ Chyba modelu";
-            console.error(e);
+        async function loadModel() {
+            document.getElementById('status').textContent = "Načítám AI model...";
+            try {
+                model = await tf.loadLayersModel('./model/model.json');
+                document.getElementById('status').innerHTML = "✅ <strong>Model načten úspěšně</strong>";
+            } catch(e) {
+                document.getElementById('status').innerHTML = "❌ Chyba načtení modelu. Zkontroluj strukturu složky 'model'";
+                console.error(e);
+            }
         }
-    }
 
-    // Analýza obrázku
-    document.getElementById('upload').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        function login() {
+            const user = document.getElementById('username').value.trim();
+            const pass = document.getElementById('password').value.trim();
 
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-            document.getElementById('preview').innerHTML = 
-                `<img src="${ev.target.result}" id="img" style="max-width:100%; border-radius:10px; margin:15px 0;">`;
+            if (user === "dispecink" && pass === "riskguard2026") {
+                document.getElementById('loginScreen').style.display = "none";
+                document.getElementById('dashboard').style.display = "block";
+                loadModel();
+            } else {
+                alert("Špatné přihlašovací údaje!\n\nUživatel: dispecink\nHeslo: riskguard2026");
+            }
+        }
 
-            const img = document.getElementById('img');
-            const status = document.getElementById('status');
+        function logout() {
+            document.getElementById('loginScreen').style.display = "block";
+            document.getElementById('dashboard').style.display = "none";
+        }
 
-            img.onload = async () => {
-                if (!model) {
-                    status.textContent = "Model ještě není načten...";
-                    return;
-                }
+        // Analýza obrázku
+        document.getElementById('upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-                status.innerHTML = "🔄 <strong>AI analyzuje obrázek...</strong> (může trvat 3-10 sekund)";
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                document.getElementById('preview').innerHTML = 
+                    `<img src="${ev.target.result}" id="img" style="max-width:100%; border-radius:10px; margin:15px 0;">`;
 
-                try {
-                    // Zrychlení - menší resize + optimalizace
+                const img = document.getElementById('img');
+                const status = document.getElementById('status');
+
+                img.onload = async () => {
+                    if (!model) {
+                        status.textContent = "Model ještě není načten...";
+                        return;
+                    }
+
+                    status.textContent = "🔄 Analyzuji obrázek...";
+
                     const tensor = tf.browser.fromPixels(img)
                         .resizeNearestNeighbor([64, 64])
                         .expandDims(0)
                         .toFloat()
                         .div(255.0);
 
-                    const start = Date.now();
                     const prediction = model.predict(tensor);
                     const results = await prediction.array();
-                    const end = Date.now();
-
                     const classes = ['volny_provoz', 'kolona', 'rizikova_situace', 'chodci_cykliste'];
                     const maxIndex = results[0].indexOf(Math.max(...results[0]));
                     const confidence = (results[0][maxIndex] * 100).toFixed(1);
 
-                    let output = `<strong>Detekováno:</strong> ${classes[maxIndex].replace('_', ' ').toUpperCase()} (${confidence}%)<br>`;
-                    output += `<small>(Analýza trvala ${end - start} ms)</small><br><br>`;
+                    let output = `<strong>Situace:</strong> ${classes[maxIndex].replace('_',' ')} (${confidence}%)<br><br>`;
 
                     if (classes[maxIndex] === 'rizikova_situace' || classes[maxIndex] === 'chodci_cykliste') {
-                        output += `<div class="high-risk">⚠ VYSOKÉ RIZIKO NEHODY<br>Doporučení: Okamžitý zásah dispečinku</div>`;
+                        output += `<div class="high-risk">⚠ VYSOKÉ RIZIKO NEHODY<br>Doporučení: Okamžitý zásah</div>`;
                     } else {
-                        output += `✅ Situace je v normě.`;
+                        output += `✅ Situace v normě`;
                     }
 
                     document.getElementById('result').innerHTML = output;
-                    status.innerHTML = "✅ Analýza dokončena";
-
-                } catch(err) {
-                    status.innerHTML = "❌ Chyba při analýze";
-                    console.error(err);
-                }
+                    status.textContent = "Analýza dokončena";
+                };
             };
-        };
-        reader.readAsDataURL(file);
-    });
-</script>
+            reader.readAsDataURL(file);
+        });
+    </script>
 </body>
 </html>
