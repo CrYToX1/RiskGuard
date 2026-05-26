@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskGuard | Prevence nehod</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            background: #0f172a; 
+            color: #e2e8f0; 
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 40px auto; 
+            padding: 20px; 
+        }
+        h1 { 
+            color: #f87171; 
+            text-align: center; 
+            font-size: 2.8em;
+        }
+        .subtitle { 
+            text-align: center; 
+            color: #94a3b8; 
+            font-size: 1.3em;
+            margin-bottom: 30px; 
+        }
+        .upload-area { 
+            border: 3px dashed #64748b; 
+            padding: 50px; 
+            text-align: center; 
+            border-radius: 12px; 
+            background: #1e2937;
+        }
+        img { 
+            max-width: 100%; 
+            border-radius: 10px; 
+            margin: 25px 0; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .result { 
+            margin-top: 25px; 
+            padding: 25px; 
+            background: #1e2937; 
+            border-radius: 10px; 
+            font-size: 1.25em;
+            line-height: 1.6;
+        }
+        .high-risk { 
+            color: #ef4444; 
+            font-weight: bold; 
+            background: #450a0a;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 6px solid #ef4444;
+        }
+        .low-risk { 
+            color: #4ade80; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RiskGuard</h1>
+        <p class="subtitle">AI systém pro detekci rizikových křižovatek a prevenci nehod</p>
+        
+        <div class="upload-area">
+            <p><strong>Nahraj snímek z dopravní kamery</strong><br>
+            Model analyzuje riziko kolize, přítomnost chodců a cyklistů</p>
+            <input type="file" id="upload" accept="image/*">
+        </div>
+
+        <div id="preview"></div>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+    <script>
+        let model;
+        
+        async function loadModel() {
+            try {
+                model = await tf.loadLayersModel('./model/model.json');
+                console.log("✅ RiskGuard model načten");
+            } catch(e) {
+                console.error("Chyba načtení modelu", e);
+            }
+        }
+
+        loadModel();
+
+        document.getElementById('upload').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(ev) {
+                document.getElementById('preview').innerHTML = 
+                    `<img src="${ev.target.result}" id="inputImage">`;
+
+                const img = document.getElementById('inputImage');
+                img.onload = async () => {
+                    const tensor = tf.browser.fromPixels(img)
+                        .resizeNearestNeighbor([64, 64])
+                        .expandDims(0)
+                        .toFloat()
+                        .div(255.0);
+
+                    const prediction = model.predict(tensor);
+                    const results = await prediction.array();
+                    const classes = ['volny_provoz', 'kolona', 'rizikova_situace', 'chodci_cykliste'];
+                    const maxIndex = results[0].indexOf(Math.max(...results[0]));
+                    const confidence = (results[0][maxIndex] * 100).toFixed(1);
+
+                    let output = `<strong>Analýza křižovatky:</strong> ${classes[maxIndex].replace('_', ' ').toUpperCase()}<br>`;
+                    output += `<strong>Jistota modelu:</strong> ${confidence}%<br><br>`;
+
+                    if (classes[maxIndex] === 'rizikova_situace') {
+                        output += `<div class="high-risk">⚠ VYSOKÉ RIZIKO KOLIZE<br>
+                        Detekována nebezpečná situace (vozidlo v konfliktu).<br>
+                        <strong>Doporučení prevence:</strong> Okamžité upozornění dispečinku + příprava zásahu</div>`;
+                    } 
+                    else if (classes[maxIndex] === 'chodci_cykliste') {
+                        output += `<div class="high-risk">⚠ OHROŽENÍ CHODCŮ / CYKLISTŮ<br>
+                        Vysoké riziko střetu s vulnerabilními účastníky.<br>
+                        <strong>Doporučení prevence:</strong> Zvážit prodloužení zelené pro chodce nebo varovné značení</div>`;
+                    } 
+                    else if (classes[maxIndex] === 'kolona') {
+                        output += `<div class="result">Střední riziko – kolona může vést k sekundárním nehodám.<br>
+                        <strong>Doporučení:</strong> Monitorovat vývoj situace</div>`;
+                    } 
+                    else {
+                        output += `<span class="low-risk">✅ Nízké riziko. Situace je v normě.</span>`;
+                    }
+
+                    document.getElementById('result').innerHTML = output;
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+    </script>
+</body>
+</html>
